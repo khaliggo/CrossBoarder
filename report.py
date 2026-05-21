@@ -21,14 +21,34 @@ def format_hours(hours: float | int | None) -> str:
 
 def format_summary(summary: dict[str, object]) -> str:
     """Format dataset summary for console output."""
+    directions_value = summary.get("directions")
+    vehicle_groups_value = summary.get("vehicle_groups")
+    source_files_value = summary.get("source_files")
+
+    directions = (
+        [str(item) for item in directions_value]
+        if isinstance(directions_value, Iterable) and not isinstance(directions_value, (str, bytes))
+        else []
+    )
+    vehicle_groups = (
+        [str(item) for item in vehicle_groups_value]
+        if isinstance(vehicle_groups_value, Iterable) and not isinstance(vehicle_groups_value, (str, bytes))
+        else []
+    )
+    source_files = (
+        [str(item) for item in source_files_value]
+        if isinstance(source_files_value, Iterable) and not isinstance(source_files_value, (str, bytes))
+        else []
+    )
+
     lines = [
         "КордонПлан: підсумок даних",
         f"Записів: {summary.get('records', 0)}",
         f"Пунктів пропуску: {summary.get('crossings', 0)}",
         f"Період: {summary.get('date_from')} - {summary.get('date_to')}",
-        f"Напрямки: {', '.join(summary.get('directions', []))}",
-        f"Типи транспорту: {', '.join(summary.get('vehicle_groups', []))}",
-        f"Файли: {', '.join(summary.get('source_files', []))}",
+        f"Напрямки: {', '.join(directions)}",
+        f"Типи транспорту: {', '.join(vehicle_groups)}",
+        f"Файли: {', '.join(source_files)}",
     ]
     return "\n".join(lines)
 
@@ -84,7 +104,11 @@ def format_load_profile(profile: dict[str, object]) -> str:
         "Дні тижня від піку до тихого:",
     ]
 
-    for item in profile.get("weekday_profile", []):
+    weekday_profile = profile.get("weekday_profile")
+    if not isinstance(weekday_profile, list):
+        weekday_profile = []
+
+    for item in weekday_profile:
         lines.append(f"- {item.get('name')}: {format_hours(item.get('avg_wait_hours'))}, n={item.get('samples')}")
 
     return "\n".join(lines)
@@ -133,9 +157,13 @@ def create_bar_chart(rows: list[dict[str, object]], output_path: Path | str, tit
 
     chart_rows = sorted(rows, key=lambda item: item.get("avg_wait_hours", 0), reverse=True)[:top_n]
     labels = [str(row.get("crossing"))[:48] for row in chart_rows]
-    values = [float(row.get("avg_wait_hours", 0)) for row in chart_rows]
+    values: list[float] = []
+    for row in chart_rows:
+        avg_wait = row.get("avg_wait_hours")
+        values.append(float(avg_wait) if isinstance(avg_wait, (int, float)) else 0.0)
 
-    plt.figure(figsize=(12, max(6, len(chart_rows) * 0.55)))
+    height = max(6.0, len(chart_rows) * 0.55)
+    plt.figure(figsize=(12, height))
     plt.barh(labels, values, color="#2f7d6d")
     plt.xlabel("Середнє очікування, год")
     plt.title(title)

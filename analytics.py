@@ -114,11 +114,21 @@ def filter_records(
 def summarise_dataset(records: Iterable[dict[str, object]]) -> dict[str, object]:
     """Return high-level dataset statistics."""
     records_list = list(records)
-    dates = [record["created_at"] for record in records_list if isinstance(record.get("created_at"), datetime)]
     crossings = {str(record.get("crossing")) for record in records_list if record.get("crossing")}
     directions = {str(record.get("direction")) for record in records_list if record.get("direction")}
     vehicle_groups = {str(record.get("vehicle_group")) for record in records_list if record.get("vehicle_group")}
     source_files = {str(record.get("source_file")) for record in records_list if record.get("source_file")}
+
+    earliest: datetime | None = None
+    latest: datetime | None = None
+    for record in records_list:
+        created_at = record.get("created_at")
+        if not isinstance(created_at, datetime):
+            continue
+        if earliest is None or created_at < earliest:
+            earliest = created_at
+        if latest is None or created_at > latest:
+            latest = created_at
 
     return {
         "records": len(records_list),
@@ -126,8 +136,8 @@ def summarise_dataset(records: Iterable[dict[str, object]]) -> dict[str, object]
         "directions": sorted(directions),
         "vehicle_groups": sorted(vehicle_groups),
         "source_files": sorted(source_files),
-        "date_from": min(dates).date() if dates else None,
-        "date_to": max(dates).date() if dates else None,
+        "date_from": earliest.date() if earliest else None,
+        "date_to": latest.date() if latest else None,
     }
 
 

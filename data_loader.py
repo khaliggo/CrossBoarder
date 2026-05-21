@@ -142,11 +142,15 @@ def load_records(
 
 def keep_last_months(records: list[dict[str, object]], months: int) -> list[dict[str, object]]:
     """Keep records whose created date is within the latest N calendar months."""
-    valid_dates = [record["created_at"] for record in records if isinstance(record.get("created_at"), datetime)]
-    if not valid_dates:
+    latest: datetime | None = None
+    for record in records:
+        created_at = record.get("created_at")
+        if isinstance(created_at, datetime):
+            if latest is None or created_at > latest:
+                latest = created_at
+    if latest is None:
         return records
 
-    latest = max(valid_dates)
     latest_month_index = latest.year * 12 + latest.month
     earliest_month_index = latest_month_index - max(months, 1) + 1
 
