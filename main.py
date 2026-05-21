@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from analytics import (
@@ -14,6 +14,7 @@ from analytics import (
 )
 from data_loader import (
     DATA_DIR,
+    RESOURCE_PAGES,
     download_archive_resources,
     download_current_resources,
     list_csv_files,
@@ -78,13 +79,39 @@ def prompt_vehicle_group() -> str | None:
     return None
 
 
-def prompt_date() -> datetime.date:
+def prompt_date() -> date:
     while True:
         value = read_input("Дата поїздки YYYY-MM-DD: ")
         try:
             return datetime.strptime(value, "%Y-%m-%d").date()
         except ValueError:
             print("Невірний формат. Приклад: 2026-06-15")
+
+
+# noinspection PyTypeChecker
+def prompt_int(prompt: str, default_value: int, min_value: int, max_value: int) -> int:
+    """Prompt for an integer in a bounded range."""
+    while True:
+        value = read_input(prompt)
+        if not value:
+            return default_value
+        try:
+            number = int(value)
+        except ValueError:
+            print("Невірне число. Введіть ціле значення.")
+            continue
+        if number < min_value or number > max_value:
+            print(f"Діапазон: {min_value}-{max_value}.")
+            continue
+        return number
+
+
+def prompt_resource_name() -> str | None:
+    value = read_input("Ресурс (queue / busQueue, Enter - queue): ") or "queue"
+    if value not in RESOURCE_PAGES:
+        print("Невідомий ресурс. Доступні: queue, busQueue.")
+        return None
+    return value
 
 
 def ensure_records(records: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -128,9 +155,10 @@ def main() -> None:
             print(last_report)
 
         elif choice == "3":
-            resource = read_input("Ресурс (queue / busQueue): ") or "queue"
-            limit_text = read_input("Скільки архівних ревізій скачати (1-12): ") or "6"
-            limit = max(1, min(12, int(limit_text)))
+            resource = prompt_resource_name()
+            if not resource:
+                continue
+            limit = prompt_int("Скільки архівних ревізій скачати (1-12, Enter - 6): ", 6, 1, 12)
             print("Скачую архівні CSV. Обсяг може бути великим.")
             downloaded = download_archive_resources(resource, DATA_DIR, limit=limit)
             records = load_records(DATA_DIR)
@@ -176,8 +204,7 @@ def main() -> None:
             direction = prompt_direction() or "виїзд"
             vehicle_group = prompt_vehicle_group()
             target_date = prompt_date()
-            days_text = read_input("Шукати оптимальний день у наступні N днів (Enter - 7): ") or "7"
-            days_ahead = max(1, min(31, int(days_text)))
+            days_ahead = prompt_int("Шукати оптимальний день у наступні N днів (Enter - 7): ", 7, 1, 31)
             recommendations = recommend_trip(
                 records,
                 direction=direction,

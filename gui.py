@@ -6,7 +6,7 @@ import threading
 import queue
 from datetime import datetime
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, RIGHT, X, Canvas, StringVar, Tk, messagebox, simpledialog
+from tkinter import Canvas, StringVar, Tk, messagebox, simpledialog
 from tkinter import ttk
 
 from analytics import average_wait_by_crossing_day_month, build_load_profile, recommend_trip, summarise_dataset
@@ -59,14 +59,16 @@ class BorderPlannerApp(Tk):
         self.status_var = StringVar(value="Готово")
 
         self.cards: dict[str, ttk.Label] = {}
-        self.action_buttons: list[ttk.Widget] = []
+        self.action_buttons: list[ttk.Button] = []
 
         self._configure_style()
         self._build_layout()
         self._set_empty_state()
-        self.after(100, self._poll_tasks)
+        # noinspection PyTypeChecker
+        self.after(100, lambda: self._poll_tasks())
         if list_csv_files(DATA_DIR):
-            self.after(250, self.load_data)
+            # noinspection PyTypeChecker
+            self.after(250, lambda: self.load_data())
 
     def _configure_style(self) -> None:
         self.configure(bg="#eef3f1")
@@ -98,30 +100,30 @@ class BorderPlannerApp(Tk):
 
     def _build_layout(self) -> None:
         root = ttk.Frame(self, style="Root.TFrame", padding=16)
-        root.pack(fill=BOTH, expand=True)
+        root.pack(fill="both", expand=True)
 
         header = ttk.Frame(root, style="Header.TFrame", padding=(22, 18))
-        header.pack(fill=X)
+        header.pack(fill="x")
         ttk.Label(header, text="КордонПлан", style="HeaderTitle.TLabel").pack(anchor="w")
         ttk.Label(header, text="Рекомендації для перетину кордону на основі даних еЧерги", style="HeaderSub.TLabel").pack(anchor="w", pady=(4, 0))
 
         content = ttk.Frame(root, style="Root.TFrame")
-        content.pack(fill=BOTH, expand=True, pady=(16, 0))
+        content.pack(fill="both", expand=True, pady=(16, 0))
 
         sidebar = ttk.Frame(content, style="Panel.TFrame", padding=18, width=300)
-        sidebar.pack(side=LEFT, fill="y")
+        sidebar.pack(side="left", fill="y")
         sidebar.pack_propagate(False)
         self._build_sidebar(sidebar)
 
         workspace = ttk.Frame(content, style="Root.TFrame")
-        workspace.pack(side=RIGHT, fill=BOTH, expand=True, padx=(16, 0))
+        workspace.pack(side="right", fill="both", expand=True, padx=(16, 0))
         self._build_workspace(workspace)
 
         footer = ttk.Frame(root, style="Root.TFrame")
-        footer.pack(fill=X, pady=(12, 0))
+        footer.pack(fill="x", pady=(12, 0))
         self.progress = ttk.Progressbar(footer, mode="indeterminate", length=190)
-        self.progress.pack(side=LEFT)
-        ttk.Label(footer, textvariable=self.status_var, background="#eef3f1", foreground="#3e5450").pack(side=LEFT, padx=(12, 0))
+        self.progress.pack(side="left")
+        ttk.Label(footer, textvariable=self.status_var, background="#eef3f1", foreground="#3e5450").pack(side="left", padx=(12, 0))
 
     def _build_sidebar(self, parent: ttk.Frame) -> None:
         ttk.Label(parent, text="Дані", style="Section.TLabel").pack(anchor="w")
@@ -129,7 +131,7 @@ class BorderPlannerApp(Tk):
         self._add_button(parent, "Скачати поточні CSV", self.download_data, "Secondary.TButton")
         self._add_button(parent, "Скачати архів CSV", self.download_archive_data, "Secondary.TButton")
 
-        ttk.Separator(parent).pack(fill=X, pady=18)
+        ttk.Separator(parent).pack(fill="x", pady=18)
 
         ttk.Label(parent, text="Параметри", style="Section.TLabel").pack(anchor="w")
         self._add_labeled_combobox(parent, "Напрямок", self.direction_var, list(DIRECTION_OPTIONS))
@@ -138,7 +140,7 @@ class BorderPlannerApp(Tk):
         self._add_labeled_entry(parent, "Днів для пошуку", self.days_var)
         self._add_labeled_entry(parent, "Пункт пропуску", self.crossing_var)
 
-        ttk.Separator(parent).pack(fill=X, pady=18)
+        ttk.Separator(parent).pack(fill="x", pady=18)
 
         ttk.Label(parent, text="Дії", style="Section.TLabel").pack(anchor="w")
         self._add_button(parent, "Підібрати маршрут", self.show_recommendations, "Primary.TButton")
@@ -150,14 +152,14 @@ class BorderPlannerApp(Tk):
 
     def _build_workspace(self, parent: ttk.Frame) -> None:
         cards_frame = ttk.Frame(parent, style="Root.TFrame")
-        cards_frame.pack(fill=X)
+        cards_frame.pack(fill="x")
         self._add_card(cards_frame, "records", "Записів", "0")
         self._add_card(cards_frame, "crossings", "Пунктів", "0")
         self._add_card(cards_frame, "period", "Період", "-")
         self._add_card(cards_frame, "files", "CSV-файлів", "0")
 
         self.notebook = ttk.Notebook(parent)
-        self.notebook.pack(fill=BOTH, expand=True, pady=(16, 0))
+        self.notebook.pack(fill="both", expand=True, pady=(16, 0))
 
         self.recommendations_tab = ttk.Frame(self.notebook, style="Panel.TFrame", padding=14)
         self.average_tab = ttk.Frame(self.notebook, style="Panel.TFrame", padding=14)
@@ -176,8 +178,8 @@ class BorderPlannerApp(Tk):
 
     def _build_recommendations_tab(self) -> None:
         top = ttk.Frame(self.recommendations_tab, style="Panel.TFrame")
-        top.pack(fill=X)
-        ttk.Label(top, text="Найкращі варіанти", style="Section.TLabel").pack(side=LEFT)
+        top.pack(fill="x")
+        ttk.Label(top, text="Найкращі варіанти", style="Section.TLabel").pack(side="left")
 
         columns = ("date", "weekday", "crossing", "wait", "samples")
         self.recommendations_tree = ttk.Treeview(self.recommendations_tab, columns=columns, show="headings", height=10)
@@ -191,14 +193,14 @@ class BorderPlannerApp(Tk):
                 "samples": ("Записів", 80),
             },
         )
-        self.recommendations_tree.pack(fill=BOTH, expand=True, pady=(12, 0))
+        self.recommendations_tree.pack(fill="both", expand=True, pady=(12, 0))
 
     def _build_average_tab(self) -> None:
         split = ttk.Frame(self.average_tab, style="Panel.TFrame")
-        split.pack(fill=BOTH, expand=True)
+        split.pack(fill="both", expand=True)
 
         left = ttk.Frame(split, style="Panel.TFrame")
-        left.pack(side=LEFT, fill=BOTH, expand=True)
+        left.pack(side="left", fill="both", expand=True)
 
         columns = ("month", "weekday", "crossing", "wait", "samples")
         self.average_tree = ttk.Treeview(left, columns=columns, show="headings", height=13)
@@ -212,14 +214,14 @@ class BorderPlannerApp(Tk):
                 "samples": ("Записів", 75),
             },
         )
-        self.average_tree.pack(fill=BOTH, expand=True)
+        self.average_tree.pack(fill="both", expand=True)
 
         right = ttk.Frame(split, style="Panel.TFrame", padding=(14, 0, 0, 0), width=320)
-        right.pack(side=RIGHT, fill="y")
+        right.pack(side="right", fill="y")
         right.pack_propagate(False)
         ttk.Label(right, text="Візуалізація", style="Section.TLabel").pack(anchor="w")
         self.chart_canvas = Canvas(right, width=300, height=440, bg="#ffffff", highlightthickness=0)
-        self.chart_canvas.pack(fill=BOTH, expand=True, pady=(10, 0))
+        self.chart_canvas.pack(fill="both", expand=True, pady=(10, 0))
 
     def _build_profile_tab(self) -> None:
         columns = ("name", "wait", "samples")
@@ -232,39 +234,42 @@ class BorderPlannerApp(Tk):
                 "samples": ("Записів", 95),
             },
         )
-        self.profile_tree.pack(fill=X)
+        self.profile_tree.pack(fill="x")
 
         self.profile_text = self._add_text_box(self.profile_tab, height=12)
-        self.profile_text.pack(fill=BOTH, expand=True, pady=(14, 0))
+        self.profile_text.pack(fill="both", expand=True, pady=(14, 0))
 
     def _build_summary_tab(self) -> None:
         self.summary_text = self._add_text_box(self.summary_tab, height=18)
-        self.summary_text.pack(fill=BOTH, expand=True)
+        self.summary_text.pack(fill="both", expand=True)
 
     def _add_button(self, parent: ttk.Frame, text: str, command, style: str) -> None:
         button = ttk.Button(parent, text=text, command=command, style=style)
-        button.pack(fill=X, pady=(10, 0))
+        button.pack(fill="x", pady=(10, 0))
         self.action_buttons.append(button)
 
-    def _add_labeled_combobox(self, parent: ttk.Frame, label: str, variable: StringVar, values: list[str]) -> None:
+    @staticmethod
+    def _add_labeled_combobox(parent: ttk.Frame, label: str, variable: StringVar, values: list[str]) -> None:
         ttk.Label(parent, text=label, style="Muted.TLabel").pack(anchor="w", pady=(12, 3))
         combo = ttk.Combobox(parent, textvariable=variable, values=values, state="readonly")
-        combo.pack(fill=X)
+        combo.pack(fill="x")
 
-    def _add_labeled_entry(self, parent: ttk.Frame, label: str, variable: StringVar) -> None:
+    @staticmethod
+    def _add_labeled_entry(parent: ttk.Frame, label: str, variable: StringVar) -> None:
         ttk.Label(parent, text=label, style="Muted.TLabel").pack(anchor="w", pady=(12, 3))
         entry = ttk.Entry(parent, textvariable=variable)
-        entry.pack(fill=X)
+        entry.pack(fill="x")
 
     def _add_card(self, parent: ttk.Frame, key: str, title: str, value: str) -> None:
         card = ttk.Frame(parent, style="Card.TFrame", padding=(16, 12), width=190)
-        card.pack(side=LEFT, fill=X, expand=True, padx=(0, 12))
+        card.pack(side="left", fill="x", expand=True, padx=(0, 12))
         ttk.Label(card, text=title, style="CardTitle.TLabel").pack(anchor="w")
         label = ttk.Label(card, text=value, style="CardValue.TLabel")
         label.pack(anchor="w", pady=(4, 0))
         self.cards[key] = label
 
-    def _add_text_box(self, parent: ttk.Frame, height: int):
+    @staticmethod
+    def _add_text_box(parent: ttk.Frame, height: int):
         text = __import__("tkinter").Text(
             parent,
             height=height,
@@ -279,14 +284,15 @@ class BorderPlannerApp(Tk):
         )
         return text
 
-    def _setup_tree(self, tree: ttk.Treeview, columns: dict[str, tuple[str, int]]) -> None:
+    @staticmethod
+    def _setup_tree(tree: ttk.Treeview, columns: dict[str, tuple[str, int]]) -> None:
         for column, (heading, width) in columns.items():
             tree.heading(column, text=heading)
             tree.column(column, width=width, anchor="w", stretch=column == "crossing")
 
         scrollbar = ttk.Scrollbar(tree.master, orient="vertical", command=tree.yview)
         tree.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side=RIGHT, fill="y")
+        scrollbar.pack(side="right", fill="y")
 
     def _set_empty_state(self) -> None:
         self._set_text(self.summary_text, "Завантажте CSV з папки data або скачайте поточні файли з data.gov.ua.")
@@ -362,7 +368,8 @@ class BorderPlannerApp(Tk):
             elif kind == "error" and isinstance(payload, Exception):
                 self._finish_task_error(payload)
 
-        self.after(100, self._poll_tasks)
+        # noinspection PyTypeChecker
+        self.after(100, lambda: self._poll_tasks())
 
     def _finish_task_success(self, result, on_success) -> None:
         self._set_busy(False, "Готово")
@@ -421,7 +428,9 @@ class BorderPlannerApp(Tk):
         self.cards["records"].configure(text=str(summary.get("records", 0)))
         self.cards["crossings"].configure(text=str(summary.get("crossings", 0)))
         self.cards["period"].configure(text=f"{summary.get('date_from')} - {summary.get('date_to')}")
-        self.cards["files"].configure(text=str(len(summary.get("source_files", []))))
+        source_files = summary.get("source_files")
+        file_count = len(source_files) if isinstance(source_files, list) else 0
+        self.cards["files"].configure(text=str(file_count))
 
     def show_recommendations(self) -> None:
         if not self._require_records():
@@ -444,7 +453,7 @@ class BorderPlannerApp(Tk):
             note = " *" if item.get("fallback_used") else ""
             self.recommendations_tree.insert(
                 "",
-                END,
+                "end",
                 values=(
                     item.get("date"),
                     item.get("weekday_name"),
@@ -475,7 +484,7 @@ class BorderPlannerApp(Tk):
         for row in rows[:300]:
             self.average_tree.insert(
                 "",
-                END,
+                "end",
                 values=(
                     row.get("month_name"),
                     row.get("weekday_name"),
@@ -504,8 +513,15 @@ class BorderPlannerApp(Tk):
 
     def _render_load_profile(self, profile: dict[str, object]) -> None:
         self._clear_tree(self.profile_tree)
-        for item in profile.get("weekday_profile", []):
-            self.profile_tree.insert("", END, values=(item.get("name"), format_hours(item.get("avg_wait_hours")), item.get("samples")))
+        weekday_profile = profile.get("weekday_profile")
+        if not isinstance(weekday_profile, list):
+            weekday_profile = []
+        for item in weekday_profile:
+            self.profile_tree.insert(
+                "",
+                "end",
+                values=(item.get("name"), format_hours(item.get("avg_wait_hours")), item.get("samples")),
+            )
         self.last_report = format_load_profile(profile)
         self._set_text(self.profile_text, self.last_report)
         self._set_text(self.summary_text, self.last_report)
@@ -548,7 +564,8 @@ class BorderPlannerApp(Tk):
         self.status_var.set(f"PNG збережено: {path}")
         messagebox.showinfo("Збережено", f"PNG-чарт збережено:\n{path}")
 
-    def _average_report_text(self, rows: list[dict[str, object]], limit: int = 30) -> str:
+    @staticmethod
+    def _average_report_text(rows: list[dict[str, object]], limit: int = 30) -> str:
         if not rows:
             return "Немає даних для таблиці середнього очікування."
         lines = ["Середній час очікування: пункт x день x місяць", ""]
@@ -570,6 +587,11 @@ class BorderPlannerApp(Tk):
             return
 
         chart_rows = sorted(rows, key=lambda item: float(item.get("avg_wait_hours", 0)))[:9]
+        values: list[float] = []
+        for row in chart_rows:
+            avg_wait = row.get("avg_wait_hours")
+            values.append(float(avg_wait) if isinstance(avg_wait, (int, float)) else 0.0)
+
         width = max(self.chart_canvas.winfo_width(), 300)
         left_pad = 8
         label_width = 172
@@ -577,7 +599,7 @@ class BorderPlannerApp(Tk):
         bar_max_width = max(80, width - bar_left - 34)
         row_height = 44
         top = 26
-        max_value = max(float(row.get("avg_wait_hours", 0)) for row in chart_rows) or 1
+        max_value = max(values) if values else 1.0
 
         self.chart_canvas.create_text(left_pad, 10, text="Найшвидші пункти", anchor="w", fill="#183e38", font=("Segoe UI Semibold", 11))
 
@@ -585,7 +607,7 @@ class BorderPlannerApp(Tk):
             y = top + index * row_height
             crossing = str(row.get("crossing", ""))
             label = crossing[:29] + "..." if len(crossing) > 32 else crossing
-            value = float(row.get("avg_wait_hours", 0))
+            value = values[index]
             bar_width = int((value / max_value) * bar_max_width)
             color = "#1f6f5f" if index == 0 else "#73a89b"
 
@@ -593,13 +615,15 @@ class BorderPlannerApp(Tk):
             self.chart_canvas.create_rectangle(bar_left, y, bar_left + bar_width, y + 18, fill=color, outline="")
             self.chart_canvas.create_text(bar_left + bar_width + 5, y + 9, text=format_hours(value), anchor="w", fill="#24312e", font=("Segoe UI", 8))
 
-    def _set_text(self, widget, content: str) -> None:
+    @staticmethod
+    def _set_text(widget, content: str) -> None:
         widget.configure(state="normal")
-        widget.delete("1.0", END)
+        widget.delete("1.0", "end")
         widget.insert("1.0", content)
         widget.configure(state="disabled")
 
-    def _clear_tree(self, tree: ttk.Treeview) -> None:
+    @staticmethod
+    def _clear_tree(tree: ttk.Treeview) -> None:
         for item in tree.get_children():
             tree.delete(item)
 
